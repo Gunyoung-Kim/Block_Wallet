@@ -9,10 +9,9 @@ import (
 	"github.com/Gunyoung-Kim/blockchain/blockchain"
 )
 
-const (
-	port        string = ":3000"
-	templateDir string = "explorer/templates/"
-)
+var port string
+
+const templateDir string = "explorer/templates/"
 
 type homeData struct {
 	PageTitle string
@@ -40,10 +39,13 @@ func add(rw http.ResponseWriter, r *http.Request) {
 }
 
 // Start explorer
-func Start() {
+func Start(portNum int) {
+	handler := http.NewServeMux()
+	port = fmt.Sprintf(":%d", portNum)
 	templates = template.Must(template.ParseGlob(templateDir + "pages/*.gohtml"))
 	templates = template.Must(templates.ParseGlob(templateDir + "fragments/*.gohtml"))
-	http.HandleFunc("/", home)
-	http.HandleFunc("/add", add)
+	handler.HandleFunc("/", home)
+	handler.HandleFunc("/add", add)
+	fmt.Printf("EXPLORER Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
