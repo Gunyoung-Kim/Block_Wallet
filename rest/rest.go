@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/Gunyoung-Kim/blockchain/blockchain"
 	"github.com/Gunyoung-Kim/blockchain/utils"
@@ -44,7 +43,7 @@ func documentation(rw http.ResponseWriter, req *http.Request) {
 			Description: "See Documentation",
 		},
 		{
-			URL:         url("blocks"),
+			URL:         url("/blocks"),
 			Method:      "GET",
 			Description: "See All Blocks",
 		},
@@ -55,7 +54,7 @@ func documentation(rw http.ResponseWriter, req *http.Request) {
 			Payload:     "data:string",
 		},
 		{
-			URL:         url("blocks/{height}"),
+			URL:         url("blocks/{hash}"),
 			Method:      "GET",
 			Description: "See a Block",
 		},
@@ -67,21 +66,20 @@ func documentation(rw http.ResponseWriter, req *http.Request) {
 func blocks(rw http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
-		json.NewEncoder(rw).Encode(blockchain.GetBlockChain().AllBlocks())
+		json.NewEncoder(rw).Encode(blockchain.BlockChain().Blocks())
 	case "POST":
 		var addBlockBody addBlockBody
 		utils.HandleError(json.NewDecoder(req.Body).Decode(&addBlockBody))
-		blockchain.GetBlockChain().AddBlock(addBlockBody.Message)
+		blockchain.BlockChain().AddBlock(addBlockBody.Message)
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
 
 func block(rw http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	height, err := strconv.Atoi(vars["height"])
-	utils.HandleError(err)
+	hash := vars["hash"]
 	encoder := json.NewEncoder(rw)
-	block, err := blockchain.GetBlockChain().GetBlock(height)
+	block, err := blockchain.FindBlock(hash)
 	if err == blockchain.ErrNotFound {
 		encoder.Encode(errorResponse{ErrorMessage: fmt.Sprint(err)})
 	} else {
@@ -104,7 +102,7 @@ func Start(portNum int) {
 	router.Use(jsonContentTypeMiddleWare)
 	router.HandleFunc("/", documentation).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
-	router.HandleFunc("/blocks/{height:[0-9]+}", block).Methods("GET")
+	router.HandleFunc("/blocks/{hash:[a-f0-9]+}", block).Methods("GET")
 	fmt.Printf("REST Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }

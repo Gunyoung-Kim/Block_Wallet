@@ -3,7 +3,7 @@ package cli
 import (
 	"flag"
 	"fmt"
-	"os"
+	"runtime"
 
 	"github.com/Gunyoung-Kim/blockchain/explorer"
 	"github.com/Gunyoung-Kim/blockchain/rest"
@@ -13,7 +13,7 @@ func usage() {
 	fmt.Printf("Please use the following flags:\n\n")
 	fmt.Printf("-port: 	Set the port of the server\n")
 	fmt.Printf("-mode: 	Choose between 'html' and 'rest' or 'both'\n")
-	os.Exit(0)
+	runtime.Goexit() // for execute defer in main
 }
 
 //Start CLI

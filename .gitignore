@@ -1,2 +1,5 @@
 ### .http
 api.http
+
+### db
+*.db
