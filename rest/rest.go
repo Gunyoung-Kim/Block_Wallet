@@ -43,6 +43,11 @@ func documentation(rw http.ResponseWriter, req *http.Request) {
 			Description: "See Documentation",
 		},
 		{
+			URL:         url("/status"),
+			Method:      "GET",
+			Description: "See the status of blockchain",
+		},
+		{
 			URL:         url("/blocks"),
 			Method:      "GET",
 			Description: "See All Blocks",
@@ -61,6 +66,10 @@ func documentation(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	json.NewEncoder(rw).Encode(data)
+}
+
+func status(rw http.ResponseWriter, req *http.Request) {
+	json.NewEncoder(rw).Encode(blockchain.BlockChain())
 }
 
 func blocks(rw http.ResponseWriter, req *http.Request) {
@@ -101,6 +110,7 @@ func Start(portNum int) {
 	port = fmt.Sprintf(":%d", portNum)
 	router.Use(jsonContentTypeMiddleWare)
 	router.HandleFunc("/", documentation).Methods("GET")
+	router.HandleFunc("/status", status).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
 	router.HandleFunc("/blocks/{hash:[a-f0-9]+}", block).Methods("GET")
 	fmt.Printf("REST Listening on http://localhost%s\n", port)
