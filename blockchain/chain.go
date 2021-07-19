@@ -25,26 +25,45 @@ var once sync.Once
 
 //------------ receiver function for blockChain ------------------
 
-func (b *blockChain) persist() {
-	db.SaveCheckPoint(utils.ToBytes(b))
-}
-
 func (b *blockChain) restoreFromBytes(data []byte) {
 	utils.FromBytes(b, data)
 }
 
 //AddBlock createBlock using current NewestHash and Height
 // and update NewestHash and Height for blockChain
-func (b *blockChain) AddBlock(data string) {
-	block := createBlock(data, b.NewestHash, b.Height+1)
+func (b *blockChain) AddBlock() {
+	block := createBlock(b.NewestHash, b.Height+1, getDifficulty(b))
 	b.NewestHash = block.Hash
 	b.Height = block.Height
 	b.CurrentDifficulty = block.Difficulty
-	b.persist()
+	persistBlockChain(b)
+}
+
+//------------ function for blockChain ------------------
+
+// BlockChain get blockChain
+// This function is for singleton pattern of blockChain
+func BlockChain() *blockChain {
+	once.Do(func() {
+		b = &blockChain{
+			Height: 0,
+		}
+		checkPoint := db.CheckPoint()
+		if checkPoint == nil {
+			b.AddBlock()
+		} else {
+			b.restoreFromBytes(checkPoint)
+		}
+	})
+	return b
+}
+
+func persistBlockChain(b *blockChain) {
+	db.SaveCheckPoint(utils.ToBytes(b))
 }
 
 //Blocks return all pointer of Blocks from DB
-func (b *blockChain) Blocks() []*Block {
+func Blocks(b *blockChain) []*Block {
 	hashCursor := b.NewestHash
 	var result []*Block
 	for {
@@ -59,8 +78,8 @@ func (b *blockChain) Blocks() []*Block {
 	return result
 }
 
-func (b *blockChain) recalculateDifficulty() int {
-	allBlocks := b.Blocks()
+func recalculateDifficulty(b *blockChain) int {
+	allBlocks := Blocks(b)
 	newestBlock := allBlocks[0]
 	lastCheckedBlock := allBlocks[difficultyInterval-1]
 	actualTime := (newestBlock.Timestamp / 60) - (lastCheckedBlock.Timestamp / 60)
@@ -73,33 +92,49 @@ func (b *blockChain) recalculateDifficulty() int {
 	return b.CurrentDifficulty
 }
 
-func (b *blockChain) difficulty() int {
+func getDifficulty(b *blockChain) int {
 	if b.Height == 0 {
 		return defaultDifficulty
 	} else if b.Height%difficultyInterval == 0 {
-		return b.recalculateDifficulty()
+		return recalculateDifficulty(b)
 	} else {
 		return b.CurrentDifficulty
 	}
 }
 
-//------------ function for blockChain ------------------
+func UTxOutsByAddress(address string, b *blockChain) []*UTxOut {
+	var uTxOuts []*UTxOut
+	creatorTxs := make(map[string]bool)
+	for _, block := range Blocks(b) {
+		for _, tx := range block.Transactions {
+			for _, input := range tx.TxIns {
+				if input.Owner == address {
+					creatorTxs[input.TxID] = true
+				}
+			}
 
-// BlockChain get blockChain
-// This function is for singleton pattern of blockChain
-func BlockChain() *blockChain {
-	if b == nil {
-		once.Do(func() {
-			b = &blockChain{
-				Height: 0,
+			for index, output := range tx.TxOuts {
+				if output.Owner == address {
+					if _, ok := creatorTxs[tx.ID]; !ok {
+						uTxOut := &UTxOut{tx.ID, index, output.Amount}
+						if !isOnMempool(uTxOut) {
+							uTxOuts = append(uTxOuts, uTxOut)
+						}
+					}
+				}
 			}
-			checkPoint := db.CheckPoint()
-			if checkPoint == nil {
-				b.AddBlock("Genesis")
-			} else {
-				b.restoreFromBytes(checkPoint)
-			}
-		})
+		}
 	}
-	return b
+
+	return uTxOuts
+}
+
+func BalanceByAddress(address string, b *blockChain) int {
+	var amount int
+	txOuts := UTxOutsByAddress(address, b)
+
+	for _, txOut := range txOuts {
+		amount += txOut.Amount
+	}
+	return amount
 }

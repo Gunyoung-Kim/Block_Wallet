@@ -14,13 +14,13 @@ var ErrNotFound = errors.New("Not Found")
 
 // Block is component of block chain
 type Block struct {
-	Height     int    `json:"height"`
-	Data       string `json:"data"`
-	Hash       string `json:"hash"`
-	PrevHash   string `json:"prevHash,omitempty"`
-	Difficulty int    `json:"difficulty"`
-	Nonce      int    `json:"nonce"`
-	Timestamp  int    `json:"timestamp"`
+	Height       int    `json:"height"`
+	Hash         string `json:"hash"`
+	PrevHash     string `json:"prevHash,omitempty"`
+	Difficulty   int    `json:"difficulty"`
+	Nonce        int    `json:"nonce"`
+	Timestamp    int    `json:"timestamp"`
+	Transactions []*Tx  `json:"transactions"`
 }
 
 //------------ receiver function for Block ------------------
@@ -61,16 +61,16 @@ func (b *Block) mine() {
 }
 
 //createBlock create Block using sha256
-func createBlock(data string, prevHash string, height int) *Block {
+func createBlock(prevHash string, height, diff int) *Block {
 	block := Block{
 		Height:     height,
-		Data:       data,
 		Hash:       "",
 		PrevHash:   prevHash,
-		Difficulty: BlockChain().difficulty(),
+		Difficulty: diff,
 		Nonce:      0,
 	}
 	block.mine()
+	block.Transactions = Mempool.txToConfirm()
 	block.persist()
 	return &block
 }
