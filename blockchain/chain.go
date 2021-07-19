@@ -58,6 +58,7 @@ func BlockChain() *blockChain {
 	return b
 }
 
+//persistBlockChain save checkpoint of blockchain to DB
 func persistBlockChain(b *blockChain) {
 	db.SaveCheckPoint(utils.ToBytes(b))
 }
@@ -78,6 +79,7 @@ func Blocks(b *blockChain) []*Block {
 	return result
 }
 
+//recalculateDifficulty recalculate difficulty of creating new block
 func recalculateDifficulty(b *blockChain) int {
 	allBlocks := Blocks(b)
 	newestBlock := allBlocks[0]
@@ -92,6 +94,10 @@ func recalculateDifficulty(b *blockChain) int {
 	return b.CurrentDifficulty
 }
 
+//getDifficulty return current difficulty for creating new block.
+//Return defaultDifficulty if there is no block yet.
+//Return CurrentDifficulty of blockchain if it is not period of recalcualte difficulty
+//Return new difficulty if it is period of recalculate difficulty
 func getDifficulty(b *blockChain) int {
 	if b.Height == 0 {
 		return defaultDifficulty
@@ -102,6 +108,9 @@ func getDifficulty(b *blockChain) int {
 	}
 }
 
+//UTxOutsByAddress return slice of UTxOut whose owner is given address
+//exploring blockchain from newestblock to oldestblock if blocks transaction contain TxIn of address then add key,value to map
+//if Tx contains txOut of address and its Id is not in map then add that txOut to UnusedTxOuts
 func UTxOutsByAddress(address string, b *blockChain) []*UTxOut {
 	var uTxOuts []*UTxOut
 	creatorTxs := make(map[string]bool)
@@ -129,6 +138,7 @@ func UTxOutsByAddress(address string, b *blockChain) []*UTxOut {
 	return uTxOuts
 }
 
+//BalanceByAddress return balance of address which is calculated by slice of unused Txouts
 func BalanceByAddress(address string, b *blockChain) int {
 	var amount int
 	txOuts := UTxOutsByAddress(address, b)
