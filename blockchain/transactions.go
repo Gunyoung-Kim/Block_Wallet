@@ -50,29 +50,54 @@ type Tx struct {
 	TxOuts    []*TxOut `json:"txOuts"`
 }
 
+//TxIn represents input for transaction
+type TxIn struct {
+	TxID      string `json:"txID"`
+	Index     int    `json:"index"`
+	Signature string `json:"signature"`
+}
+
+//TxOut represents output for transaction
+type TxOut struct {
+	Address string `json:"address"`
+	Amount  int    `json:"amount"`
+}
+
+//UTxOut represents TxOut which is not used for input of transaction
+type UTxOut struct {
+	TxID   string `json:"txID"`
+	Index  int    `json:"index"`
+	Amount int    `json:"amount"`
+}
+
 //getID create ID for Tx by hashing another field of Tx
 func (t *Tx) getID() {
 	t.ID = utils.Hash(t)
 }
 
-//TxIn represents input for transaction
-type TxIn struct {
-	TxID  string `json:"txID"`
-	Index int    `json:"index"`
-	Owner string `json:"owner"`
+func (t *Tx) sign() {
+	for _, txIn := range t.TxIns {
+		txIn.Signature = wallet.Sign(t.ID, wallet.Wallet())
+	}
 }
 
-//TxOut represents output for transaction
-type TxOut struct {
-	Owner  string
-	Amount int
-}
+func validate(t *Tx) bool {
+	valid := true
 
-//UTxOut represents TxOut which is not used for input of transaction
-type UTxOut struct {
-	TxID   string
-	Index  int
-	Amount int
+	for _, txIn := range t.TxIns {
+		prevTx := FindTransaction(BlockChain(), txIn.TxID)
+		if prevTx == nil {
+			valid = false
+			break
+		}
+		address := prevTx.TxOuts[txIn.Index].Address
+		valid = wallet.Verify(txIn.Signature, t.ID, address)
+		if !valid {
+			break
+		}
+	}
+
+	return valid
 }
 
 //isOnMempool check UTxOut is in TxIns in Tx in mempool before add to result of unusedTxOut
@@ -109,13 +134,16 @@ func makeCoinbaseTx(address string) *Tx {
 	return &tx
 }
 
+var ErrorNoMney = errors.New("Not enough balance")
+var ErrorNotValid = errors.New("Transaction is non-valid")
+
 //makeTx make transction for input amount
 //first check from has enough balance by blockchain
 //then get all unusedTxOuts and add one to one, make txIn until total is bigger than or equal to amount
 //if total is bigger than amount then append changeTxOut to txOuts of new Tx
 func makeTx(from, to string, amount int) (*Tx, error) {
 	if BalanceByAddress(from, BlockChain()) < amount {
-		return nil, errors.New("Not enough balance")
+		return nil, ErrorNoMney
 	}
 
 	var txOuts []*TxOut
@@ -145,5 +173,10 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 		TxOuts:    txOuts,
 	}
 	tx.getID()
+	tx.sign()
+	valid := validate(tx)
+	if !valid {
+		return nil, ErrorNotValid
+	}
 	return tx, nil
 }
