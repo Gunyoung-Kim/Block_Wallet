@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Gunyoung-Kim/blockchain/utils"
+	"github.com/Gunyoung-Kim/blockchain/wallet"
 )
 
 const (
@@ -20,7 +21,7 @@ var Mempool *mempool = &mempool{}
 
 //AddTx add new transaction to mempool
 func (m *mempool) AddTx(to string, amount int) error {
-	tx, err := makeTx("kim", to, amount)
+	tx, err := makeTx(wallet.Wallet().Address, to, amount)
 
 	if err != nil {
 		return err
@@ -34,7 +35,7 @@ func (m *mempool) AddTx(to string, amount int) error {
 //get all transaction from mempool and add coinbaseTx then return transactions,
 //then initialize mempool
 func (m *mempool) txToConfirm() []*Tx {
-	coinbase := makeCoinbaseTx("kim")
+	coinbase := makeCoinbaseTx(wallet.Wallet().Address)
 	txs := m.Txs
 	txs = append(txs, coinbase)
 	m.Txs = nil
