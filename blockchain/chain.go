@@ -79,6 +79,7 @@ func Blocks(b *blockChain) []*Block {
 	return result
 }
 
+//Transactions return all Transaxtion in blockChain
 func Transactions(b *blockChain) []*Tx {
 	var txs []*Tx
 	for _, block := range Blocks(b) {
@@ -87,6 +88,7 @@ func Transactions(b *blockChain) []*Tx {
 	return txs
 }
 
+//FindTransaction return a transaction whose ID is corresponds with input targetID
 func FindTransaction(b *blockChain, targetID string) *Tx {
 	for _, tx := range Transactions(b) {
 		if tx.ID == targetID {

@@ -75,12 +75,16 @@ func (t *Tx) getID() {
 	t.ID = utils.Hash(t)
 }
 
+//sign inject signature into transaction made by transaction id, private key in wallet
 func (t *Tx) sign() {
 	for _, txIn := range t.TxIns {
 		txIn.Signature = wallet.Sign(t.ID, wallet.Wallet())
 	}
 }
 
+//validate check input transaction is legal.
+//First check txIn in Transaction is in previous transaction
+//Second check txOut's address in that transaction
 func validate(t *Tx) bool {
 	valid := true
 
@@ -134,7 +138,10 @@ func makeCoinbaseTx(address string) *Tx {
 	return &tx
 }
 
-var ErrorNoMney = errors.New("Not enough balance")
+//ErrorNoMoney is error returned when there is not enough balance
+var ErrorNoMoney = errors.New("Not enough balance")
+
+//ErrorNotValid is error returned when transaction don't pass valid check
 var ErrorNotValid = errors.New("Transaction is non-valid")
 
 //makeTx make transction for input amount
@@ -143,7 +150,7 @@ var ErrorNotValid = errors.New("Transaction is non-valid")
 //if total is bigger than amount then append changeTxOut to txOuts of new Tx
 func makeTx(from, to string, amount int) (*Tx, error) {
 	if BalanceByAddress(from, BlockChain()) < amount {
-		return nil, ErrorNoMney
+		return nil, ErrorNoMoney
 	}
 
 	var txOuts []*TxOut
