@@ -79,6 +79,11 @@ func documentation(rw http.ResponseWriter, req *http.Request) {
 			Method:      "GET",
 			Description: "Get TxOuts for an address",
 		},
+		{
+			URL:         url("/ws"),
+			Method:      "GET",
+			Description: "Upgrade to web sockets",
+		},
 	}
 
 	json.NewEncoder(rw).Encode(data)
@@ -154,11 +159,18 @@ func jsonContentTypeMiddleWare(next http.Handler) http.Handler {
 	})
 }
 
+func loggerMiddleWare(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		fmt.Println(req.URL)
+		next.ServeHTTP(rw, req)
+	})
+}
+
 //Start REST API
 func Start(portNum int) {
 	router := mux.NewRouter()
 	port = fmt.Sprintf(":%d", portNum)
-	router.Use(jsonContentTypeMiddleWare)
+	router.Use(jsonContentTypeMiddleWare, loggerMiddleWare)
 	router.HandleFunc("/", documentation).Methods("GET")
 	router.HandleFunc("/status", status).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
