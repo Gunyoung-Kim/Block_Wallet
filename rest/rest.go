@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/Gunyoung-Kim/blockchain/blockchain"
+	"github.com/Gunyoung-Kim/blockchain/p2p"
 	"github.com/Gunyoung-Kim/blockchain/utils"
 	"github.com/Gunyoung-Kim/blockchain/wallet"
 	"github.com/gorilla/mux"
@@ -21,6 +22,7 @@ func (u url) MarshalText() ([]byte, error) {
 	return []byte(url), nil
 }
 
+// urlDescription is reponse entity for url Description
 type urlDescription struct {
 	URL         url    `json:"url"`
 	Method      string `json:"method"`
@@ -28,15 +30,18 @@ type urlDescription struct {
 	Payload     string `json:"payload,omitempty"`
 }
 
+// balanceResponse is response entity for balance
 type balanceResponse struct {
 	Address string `json:"address"`
 	Balance int    `json:"balance"`
 }
 
+// myWalletResponse is reponse entity for wallet status
 type myWalletResponse struct {
 	Address string `json:"address"`
 }
 
+// errorResponse is reponse entity for error message
 type errorResponse struct {
 	ErrorMessage string `json:"errorMessage"`
 }
@@ -46,6 +51,7 @@ type addTxPayload struct {
 	Amount int
 }
 
+// documentation show all url possible and its description in this api server
 func documentation(rw http.ResponseWriter, req *http.Request) {
 	data := []urlDescription{
 		{
@@ -89,10 +95,14 @@ func documentation(rw http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(rw).Encode(data)
 }
 
+// status return status of current blockchain in server
 func status(rw http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(rw).Encode(blockchain.BlockChain())
 }
 
+// blocks take two methods
+// if request's method is GET, then return all blocks in blockChain
+// if request's method is POST, then add new block to blockChain
 func blocks(rw http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
@@ -103,6 +113,8 @@ func blocks(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// block return status of a block by hash
+// it returns {@code blockChain.ErrNotFound} if there is no such block
 func block(rw http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	hash := vars["hash"]
@@ -115,6 +127,9 @@ func block(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// balance return current balance of address
+// if request query contains total, then it returns amount of balance
+// if it doesn't contain, then return list of unused transaction output
 func balance(rw http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	address := vars["address"]
@@ -129,10 +144,14 @@ func balance(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// mempool return all transactions in Mempool
 func mempool(rw http.ResponseWriter, req *http.Request) {
 	utils.HandleError(json.NewEncoder(rw).Encode(blockchain.Mempool.Txs))
 }
 
+// transactions add new transaction in Mempool
+// it return status created
+// if there comes error while creaing transaction, then it return errorMsg with status BadRequest
 func transactions(rw http.ResponseWriter, req *http.Request) {
 	var payload addTxPayload
 	utils.HandleError(json.NewDecoder(req.Body).Decode(&payload))
@@ -146,12 +165,14 @@ func transactions(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusCreated)
 }
 
+// myWallet return address of wallet which is made by public key
 func myWallet(rw http.ResponseWriter, req *http.Request) {
 	address := wallet.Wallet().Address
 	json.NewEncoder(rw).Encode(myWalletResponse{Address: address})
 }
 
-// Adapter Pattern !!!
+// jsonContentTypeMiddleWare define content type of all response to  {@code application/json}
+// this function use 'Adapter Pattern'
 func jsonContentTypeMiddleWare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Add("Content-Type", "application/json")
@@ -159,6 +180,7 @@ func jsonContentTypeMiddleWare(next http.Handler) http.Handler {
 	})
 }
 
+// loggerMiddleWare log request URL
 func loggerMiddleWare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		fmt.Println(req.URL)
@@ -175,10 +197,11 @@ func Start(portNum int) {
 	router.HandleFunc("/status", status).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
 	router.HandleFunc("/blocks/{hash:[a-f0-9]+}", block).Methods("GET")
-	router.HandleFunc("/balance/{address}", balance)
+	router.HandleFunc("/balance/{address}", balance).Methods("GET")
 	router.HandleFunc("/mempool", mempool).Methods("GET")
 	router.HandleFunc("/wallet", myWallet).Methods("GET")
 	router.HandleFunc("/transactions", transactions).Methods("POST")
+	router.HandleFunc("/ws", p2p.Upgrade)
 	fmt.Printf("REST Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }
