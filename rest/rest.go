@@ -51,6 +51,11 @@ type addTxPayload struct {
 	Amount int
 }
 
+type addPeerPayLoad struct {
+	Address string `json:"address"`
+	Port    string `json:"port"`
+}
+
 // documentation show all url possible and its description in this api server
 func documentation(rw http.ResponseWriter, req *http.Request) {
 	data := []urlDescription{
@@ -171,6 +176,18 @@ func myWallet(rw http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(rw).Encode(myWalletResponse{Address: address})
 }
 
+func peers(rw http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case "POST":
+		var payload addPeerPayLoad
+		json.NewDecoder(req.Body).Decode(&payload)
+		p2p.AddPeer(payload.Address, payload.Port)
+		rw.WriteHeader(http.StatusOK)
+	case "GET":
+		json.NewEncoder(rw).Encode(p2p.Peers)
+	}
+}
+
 // jsonContentTypeMiddleWare define content type of all response to  {@code application/json}
 // this function use 'Adapter Pattern'
 func jsonContentTypeMiddleWare(next http.Handler) http.Handler {
@@ -201,7 +218,8 @@ func Start(portNum int) {
 	router.HandleFunc("/mempool", mempool).Methods("GET")
 	router.HandleFunc("/wallet", myWallet).Methods("GET")
 	router.HandleFunc("/transactions", transactions).Methods("POST")
-	router.HandleFunc("/ws", p2p.Upgrade)
+	router.HandleFunc("/ws", p2p.Upgrade).Methods("GET")
+	router.HandleFunc("/peers", peers).Methods("GET", "POST")
 	fmt.Printf("REST Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }
