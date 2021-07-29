@@ -2,7 +2,7 @@ package db
 
 import (
 	"github.com/Gunyoung-Kim/blockchain/utils"
-	"github.com/boltdb/bolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 var db *bolt.DB // varaible for singleton pattern of *blot.DB
