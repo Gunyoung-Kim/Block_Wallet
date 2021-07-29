@@ -45,11 +45,12 @@ func (p *peer) close() {
 func (p *peer) read() {
 	defer p.close()
 	for {
-		_, payload, err := p.conn.ReadMessage()
+		m := Message{}
+		err := p.conn.ReadJSON(&m)
 		if err != nil {
 			break
 		}
-		fmt.Printf("%s", payload)
+		handleMsg(&m, p)
 	}
 }
 
@@ -65,6 +66,8 @@ func (p *peer) write() {
 }
 
 func initPeer(conn *websocket.Conn, address, port string) *peer {
+	Peers.m.Lock()
+	defer Peers.m.Unlock()
 	key := fmt.Sprintf("%s:%s", address, port)
 	p := &peer{
 		key:     key,
