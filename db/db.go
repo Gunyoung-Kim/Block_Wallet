@@ -1,14 +1,22 @@
 package db
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/Gunyoung-Kim/blockchain/utils"
 	bolt "go.etcd.io/bbolt"
 )
 
 var db *bolt.DB // varaible for singleton pattern of *blot.DB
 
+func getPort() string {
+	port := os.Args[2][6:]
+	return fmt.Sprintf("%s_%s.db", dbName, port)
+}
+
 const (
-	dbName = "blockchain.db" // DB Name
+	dbName = "blockchain" // DB Name
 
 	dataBucket   = "data"   // Bucket name for checkPoint of blockChain
 	blocksBucket = "blocks" // Bucket name for blocks

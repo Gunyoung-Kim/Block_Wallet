@@ -38,13 +38,35 @@ func sendNewestBlock(p *peer) {
 	p.inbox <- m
 }
 
+func requestAllBlocks(p *peer) {
+	m := makeMessage(MessageAllBlocksRequest, nil)
+	p.inbox <- m
+}
+
+func sendAllBlocks(p *peer) {
+	m := makeMessage(MessageAllBlocksResponse, blockchain.Blocks(blockchain.BlockChain()))
+	p.inbox <- m
+}
+
 func handleMsg(m *Message, p *peer) {
 	switch m.Kind {
 	case MessageNewestBlock:
 		var payload blockchain.Block
 		utils.HandleError(json.Unmarshal(m.Payload, &payload))
+		b, err := blockchain.FindBlock(blockchain.BlockChain().NewestHash)
+		utils.HandleError(err)
+
+		if payload.Height > b.Height {
+			requestAllBlocks(p)
+		} else {
+			sendNewestBlock(p)
+		}
 	case MessageAllBlocksRequest:
+		sendAllBlocks(p)
 	case MessageAllBlocksResponse:
+		var payload []*blockchain.Block
+		json.Unmarshal(m.Payload, &payload)
+		utils.HandleError(json.Unmarshal(m.Payload, &payload))
 	}
 
 }
