@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"encoding/json"
+	"net/http"
 	"sync"
 
 	"github.com/Gunyoung-Kim/blockchain/db"
@@ -18,6 +20,7 @@ type blockChain struct {
 	NewestHash        string `json:"newestHash"`
 	Height            int    `json:"height"`
 	CurrentDifficulty int    `json:"currentDifficulty"`
+	m                 sync.Mutex
 }
 
 var b *blockChain // variable for singleton pattern of blockChain
@@ -31,16 +34,19 @@ func (b *blockChain) restoreFromBytes(data []byte) {
 
 //AddBlock createBlock using current NewestHash and Height
 // and update NewestHash and Height for blockChain
-func (b *blockChain) AddBlock() {
+func (b *blockChain) AddBlock() *Block {
 	block := createBlock(b.NewestHash, b.Height+1, getDifficulty(b))
 	b.NewestHash = block.Hash
 	b.Height = block.Height
 	b.CurrentDifficulty = block.Difficulty
 	persistBlockChain(b)
+	return block
 }
 
 // Replace blocks of blockchain and reflect to DB
 func (b *blockChain) Replace(blocks []*Block) {
+	b.m.Lock()
+	defer b.m.Unlock()
 	b.CurrentDifficulty = blocks[0].Difficulty
 	b.Height = len(blocks)
 	b.NewestHash = blocks[0].Hash
@@ -49,6 +55,20 @@ func (b *blockChain) Replace(blocks []*Block) {
 	for _, block := range blocks {
 		block.persist()
 	}
+}
+
+func (b *blockChain) AddPeerBlock(block *Block) {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	b.Height++
+	b.CurrentDifficulty = block.Difficulty
+	b.NewestHash = block.Hash
+
+	persistBlockChain(b)
+	block.persist()
+
+	// mempool
 }
 
 //------------ function for blockChain ------------------
@@ -77,6 +97,8 @@ func persistBlockChain(b *blockChain) {
 
 //Blocks return all pointer of Blocks from DB
 func Blocks(b *blockChain) []*Block {
+	b.m.Lock()
+	defer b.m.Unlock()
 	hashCursor := b.NewestHash
 	var result []*Block
 	for {
@@ -138,6 +160,13 @@ func getDifficulty(b *blockChain) int {
 	} else {
 		return b.CurrentDifficulty
 	}
+}
+
+func Status(b *blockChain, rw http.ResponseWriter) {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	json.NewEncoder(rw).Encode(b)
 }
 
 //UTxOutsByAddress return slice of UTxOut whose owner is given address

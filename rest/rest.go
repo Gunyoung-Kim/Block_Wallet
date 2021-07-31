@@ -102,7 +102,7 @@ func documentation(rw http.ResponseWriter, req *http.Request) {
 
 // status return status of current blockchain in server
 func status(rw http.ResponseWriter, req *http.Request) {
-	json.NewEncoder(rw).Encode(blockchain.BlockChain())
+	blockchain.Status(blockchain.BlockChain(), rw)
 }
 
 // blocks take two methods
@@ -113,7 +113,8 @@ func blocks(rw http.ResponseWriter, req *http.Request) {
 	case "GET":
 		json.NewEncoder(rw).Encode(blockchain.Blocks(blockchain.BlockChain()))
 	case "POST":
-		blockchain.BlockChain().AddBlock()
+		newBlock := blockchain.BlockChain().AddBlock()
+		p2p.BroadcastNewBlock(newBlock)
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
