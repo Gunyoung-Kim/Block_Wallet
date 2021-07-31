@@ -56,7 +56,7 @@ func handleMsg(m *Message, p *peer) {
 		b, err := blockchain.FindBlock(blockchain.BlockChain().NewestHash)
 		utils.HandleError(err)
 
-		if payload.Height > b.Height {
+		if payload.Height >= b.Height {
 			requestAllBlocks(p)
 		} else {
 			sendNewestBlock(p)
@@ -67,6 +67,7 @@ func handleMsg(m *Message, p *peer) {
 		var payload []*blockchain.Block
 		json.Unmarshal(m.Payload, &payload)
 		utils.HandleError(json.Unmarshal(m.Payload, &payload))
+		blockchain.BlockChain().Replace(payload)
 	}
 
 }

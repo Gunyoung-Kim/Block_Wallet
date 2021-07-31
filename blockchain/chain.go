@@ -39,6 +39,18 @@ func (b *blockChain) AddBlock() {
 	persistBlockChain(b)
 }
 
+// Replace blocks of blockchain and reflect to DB
+func (b *blockChain) Replace(blocks []*Block) {
+	b.CurrentDifficulty = blocks[0].Difficulty
+	b.Height = len(blocks)
+	b.NewestHash = blocks[0].Hash
+	persistBlockChain(b)
+
+	for _, block := range blocks {
+		block.persist()
+	}
+}
+
 //------------ function for blockChain ------------------
 
 // BlockChain get blockChain
