@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/Gunyoung-Kim/blockchain/blockchain"
 	"github.com/Gunyoung-Kim/blockchain/utils"
@@ -15,6 +16,7 @@ const (
 	MessageAllBlocksResponse
 	MessageNewBlockNotify
 	MessageNewTxNotify
+	MessageNewPeerNotify
 )
 
 type Message struct {
@@ -60,6 +62,11 @@ func notifyNewTx(tx *blockchain.Tx, p *peer) {
 	p.inbox <- m
 }
 
+func notifyNewPeer(address string, p *peer) {
+	m := makeMessage(MessageNewPeerNotify, address)
+	p.inbox <- m
+}
+
 func handleMsg(m *Message, p *peer) {
 	switch m.Kind {
 	case MessageNewestBlock:
@@ -88,6 +95,11 @@ func handleMsg(m *Message, p *peer) {
 		var payload *blockchain.Tx
 		utils.HandleError(json.Unmarshal(m.Payload, &payload))
 		blockchain.Mempool().AddPeerTx(payload)
+	case MessageNewPeerNotify:
+		var payload string
+		utils.HandleError(json.Unmarshal(m.Payload, &payload))
+		parts := strings.Split(payload, ":")
+		AddPeer(parts[0], parts[1], parts[2], false)
 	}
 
 }
