@@ -57,18 +57,25 @@ func (b *blockChain) Replace(blocks []*Block) {
 	}
 }
 
-func (b *blockChain) AddPeerBlock(block *Block) {
+func (b *blockChain) AddPeerBlock(newBlock *Block) {
 	b.m.Lock()
+	m.m.Lock()
 	defer b.m.Unlock()
+	defer m.m.Unlock()
 
 	b.Height++
-	b.CurrentDifficulty = block.Difficulty
-	b.NewestHash = block.Hash
+	b.CurrentDifficulty = newBlock.Difficulty
+	b.NewestHash = newBlock.Hash
 
 	persistBlockChain(b)
-	block.persist()
+	newBlock.persist()
 
-	// mempool
+	for _, tx := range newBlock.Transactions {
+		_, ok := m.Txs[tx.ID]
+		if ok {
+			delete(m.Txs, tx.ID)
+		}
+	}
 }
 
 //------------ function for blockChain ------------------
