@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/Gunyoung-Kim/blockchain/utils"
@@ -14,21 +15,30 @@ const (
 
 type mempool struct {
 	Txs []*Tx
+	m   sync.Mutex
 }
 
 //Mempool slice of Tx which is not confirmed
-var Mempool *mempool = &mempool{}
+var m *mempool
+var memOnce sync.Once
+
+func Mempool() *mempool {
+	memOnce.Do(func() {
+		m = &mempool{}
+	})
+	return m
+}
 
 //AddTx add new transaction to mempool
-func (m *mempool) AddTx(to string, amount int) error {
+func (m *mempool) AddTx(to string, amount int) (*Tx, error) {
 	tx, err := makeTx(wallet.Wallet().Address, to, amount)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	m.Txs = append(m.Txs, tx)
-	return nil
+	return tx, nil
 }
 
 //txToConfirm confirm all transactions in mempool
@@ -40,6 +50,13 @@ func (m *mempool) txToConfirm() []*Tx {
 	txs = append(txs, coinbase)
 	m.Txs = nil
 	return txs
+}
+
+func (m *mempool) AddPeerTx(tx *Tx) {
+	m.m.Lock()
+	defer m.m.Unlock()
+
+	m.Txs = append(m.Txs, tx)
 }
 
 //Tx is transaction
@@ -106,7 +123,7 @@ func validate(t *Tx) bool {
 
 //isOnMempool check UTxOut is in TxIns in Tx in mempool before add to result of unusedTxOut
 func isOnMempool(uTxOut *UTxOut) bool {
-	for _, tx := range Mempool.Txs {
+	for _, tx := range Mempool().Txs {
 		for _, input := range tx.TxIns {
 			if input.TxID == uTxOut.TxID && input.Index == uTxOut.Index {
 				return true
